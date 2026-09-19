@@ -170,7 +170,10 @@ export function paintField(field, rgba, { mode = 'displacement', scale = 1, inte
   }
   for (const src of field.sources) {
     if (!src.enabled) continue;
-    const i = field.index(src.x, src.y) * 4;
+    const x = Math.round(src.x);
+    const y = Math.round(src.y);
+    if (!field.inBounds(x, y)) continue;
+    const i = field.index(x, y) * 4;
     rgba[i] = SOURCE_COLOR[0];
     rgba[i + 1] = SOURCE_COLOR[1];
     rgba[i + 2] = SOURCE_COLOR[2];
