@@ -43,10 +43,24 @@ static server works too.
 | Calm water | Zero the surface but keep sources, walls and shallows |
 | Remove sources | Drop every oscillator |
 | Reset scene | Rebuild the selected scene from scratch |
+| Copy link | Put a permalink to the current set-up on the clipboard (see below) |
 
 Keyboard: <kbd>Space</kbd> pause, <kbd>.</kbd> step, <kbd>C</kbd> calm the
-water, <kbd>R</kbd> reset, <kbd>V</kbd> switch view, <kbd>1</kbd>–<kbd>5</kbd>
-pick a tool.
+water, <kbd>R</kbd> reset, <kbd>V</kbd> switch view, <kbd>L</kbd> copy link,
+<kbd>1</kbd>–<kbd>5</kbd> pick a tool.
+
+### Share links
+
+**Copy link** writes the whole set-up into the page's URL hash and copies it:
+the scene, frequency, damping, brightness and view, every source (position,
+amplitude, phase and drift), and any walls or shallows you drew. Opening the
+link rebuilds the tank exactly; only the moving surface starts from rest.
+
+Walls and shallows are stored run-length encoded per cell (`120w2b…`: a
+decimal count followed by `w` water, `b` barrier, or `s` plus a two-digit hex
+wave speed), and only when they differ from what the chosen scene lays down,
+so links to untouched scenes stay short. Malformed links fall back to the
+defaults for whatever part could not be read.
 
 ### Scenes
 
@@ -111,8 +125,9 @@ style.css         layout and theme
 src/wave.js       WaveField: grid, stepping, walls, speed map, sources, sponge
 src/scenes.js     built-in scene definitions
 src/render.js     colour ramps, intensity accumulator, RGBA painting
+src/share.js      permalink encoding and decoding
 src/main.js       DOM wiring, pointer tools and the animation loop
-test/             node --test suites for the solver, scenes and renderer
+test/             node --test suites for the solver, scenes, renderer and share links
 scripts/serve.js  dependency-free static server for local development
 ```
 
