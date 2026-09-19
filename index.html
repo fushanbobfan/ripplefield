@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ripplefield</title>
+  <meta name="description" content="An interactive ripple tank: drop wave sources, draw walls and watch interference, diffraction, reflection and refraction." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Ripplefield</h1>
+    <p class="subtitle">A ripple tank in your browser. Click to add a source, drag to draw walls, and watch waves interfere.</p>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="Wave tank">
+      <canvas id="tank" width="720" height="480" aria-label="Wave tank showing surface displacement">
+        Your browser does not support the canvas element.
+      </canvas>
+      <div class="stage-bar">
+        <div class="tool-group" role="radiogroup" aria-label="Pointer tool">
+          <label><input type="radio" name="tool" value="source" checked /> Add source</label>
+          <label><input type="radio" name="tool" value="poke" /> Drop a pebble</label>
+          <label><input type="radio" name="tool" value="wall" /> Draw wall</label>
+          <label><input type="radio" name="tool" value="erase" /> Erase wall</label>
+          <label><input type="radio" name="tool" value="shallow" /> Paint shallows</label>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Tank controls">
+      <div class="control-row">
+        <label for="scene">Scene</label>
+        <select id="scene"></select>
+        <p id="scene-description" class="hint"></p>
+      </div>
+
+      <div class="control-row">
+        <label for="frequency">Frequency <output id="frequency-value" for="frequency">50</output></label>
+        <input id="frequency" type="range" min="10" max="90" step="1" value="50" />
+      </div>
+
+      <div class="control-row">
+        <label for="damping">Damping <output id="damping-value" for="damping">0.0000</output></label>
+        <input id="damping" type="range" min="0" max="0.02" step="0.0005" value="0" />
+      </div>
+
+      <div class="control-row">
+        <label for="steps">Speed <output id="steps-value" for="steps">2</output></label>
+        <input id="steps" type="range" min="1" max="8" step="1" value="2" />
+      </div>
+
+      <div class="control-row">
+        <label for="brightness">Brightness <output id="brightness-value" for="brightness">2.0</output></label>
+        <input id="brightness" type="range" min="0.2" max="5" step="0.1" value="2" />
+      </div>
+
+      <div class="control-row">
+        <label for="view">View</label>
+        <select id="view">
+          <option value="displacement">Surface displacement</option>
+          <option value="intensity">Time-averaged intensity</option>
+        </select>
+      </div>
+
+      <div class="control-row">
+        <label for="brush">Wall brush size <output id="brush-value" for="brush">2</output></label>
+        <input id="brush" type="range" min="1" max="8" step="1" value="2" />
+      </div>
+
+      <div class="control-row button-row">
+        <button id="pause" type="button" aria-pressed="false">Pause</button>
+        <button id="step" type="button">Step</button>
+        <button id="clear-waves" type="button">Calm water</button>
+      </div>
+      <div class="control-row button-row">
+        <button id="clear-sources" type="button">Remove sources</button>
+        <button id="reset" type="button">Reset scene</button>
+      </div>
+
+      <p class="hint">
+        Shortcuts: <kbd>Space</kbd> pause, <kbd>.</kbd> step, <kbd>C</kbd> calm the water,
+        <kbd>R</kbd> reset, <kbd>V</kbd> switch view, <kbd>1</kbd>&ndash;<kbd>5</kbd> pick a tool.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Amber is a crest, blue a trough. Sand-coloured cells are walls; teal-tinted water is shallow and slow.
+      Waves leaving the tank are absorbed at the edges so the tank behaves as if it were much larger.
+    </p>
+  </footer>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

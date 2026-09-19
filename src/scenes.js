@@ -51,7 +51,7 @@ export const SCENES = [
     name: 'Double slit',
     description: 'Plane-ish waves from a distant source hit a barrier with two narrow slits. Beyond it the two openings act as new sources and interfere.',
     apply(field, { frequency }) {
-      field.addSource(px(field, 0.12), py(field, 0.5), { frequency, amplitude: 1.5 });
+      field.addSource(px(field, 0.12), py(field, 0.5), { frequency, amplitude: 3 });
       barrier(field, 0.45, [
         [0.44, 0.47],
         [0.53, 0.56],
@@ -63,7 +63,7 @@ export const SCENES = [
     name: 'Single slit diffraction',
     description: 'One opening a few wavelengths wide. The wave fans out behind it and a central bright lobe forms with dimmer side lobes.',
     apply(field, { frequency }) {
-      field.addSource(px(field, 0.12), py(field, 0.5), { frequency, amplitude: 1.5 });
+      field.addSource(px(field, 0.12), py(field, 0.5), { frequency, amplitude: 3 });
       barrier(field, 0.45, [[0.44, 0.56]]);
     },
   },
