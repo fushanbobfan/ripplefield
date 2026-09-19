@@ -1,0 +1,27 @@
+{
+  "name": "ripplefield",
+  "version": "0.1.0",
+  "description": "An interactive ripple tank: drop wave sources, draw walls and watch interference, diffraction, reflection and refraction unfold in the browser.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "node scripts/serve.js"
+  },
+  "keywords": [
+    "waves",
+    "ripple-tank",
+    "interference",
+    "diffraction",
+    "simulation",
+    "physics",
+    "visualization",
+    "canvas"
+  ],
+  "license": "MIT",
+  "author": "Jiayi Fan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fushanbobfan/ripplefield.git"
+  },
+  "private": false
+}
