@@ -24,6 +24,7 @@ test('every scene loads on small and large grids without leaving the field', () 
       assert.equal(applied, scene);
       for (const s of f.sources) {
         assert.ok(f.inBounds(s.x, s.y), `${scene.id}: source at ${s.x},${s.y} outside ${w}x${h}`);
+        assert.ok(Number.isInteger(s.x) && Number.isInteger(s.y), `${scene.id}: sources start on a cell`);
         assert.equal(f.wall[f.index(s.x, s.y)], 0, `${scene.id}: source inside a wall`);
         assert.equal(s.frequency, 0.03);
       }
@@ -86,6 +87,19 @@ test('the antiphase pair produces a node on the midline where the in-phase pair 
   const inPhase = run('two-source');
   const antiPhase = run('antiphase');
   assert.ok(antiPhase < inPhase * 0.1, `antiphase ${antiPhase} vs in-phase ${inPhase}`);
+});
+
+test('the Doppler source is slower than the waves and the Mach source faster', () => {
+  const f = new WaveField(120, 80);
+  loadScene(f, 'doppler');
+  assert.ok(Math.hypot(f.sources[0].vx, f.sources[0].vy) < f.courant);
+  loadScene(f, 'mach');
+  assert.ok(Math.hypot(f.sources[0].vx, f.sources[0].vy) > f.courant);
+  // Both keep running for a long time without leaving the tank or blowing up.
+  for (let t = 0; t < 1500; t++) f.step();
+  const s = f.sources[0];
+  assert.ok(f.inBounds(Math.round(s.x), Math.round(s.y)));
+  assert.ok(Number.isFinite(f.energy()));
 });
 
 test('the lens slows waves inside the disc only', () => {

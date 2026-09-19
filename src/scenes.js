@@ -110,6 +110,22 @@ export const SCENES = [
     },
   },
   {
+    id: 'doppler',
+    name: 'Doppler shift',
+    description: 'A source gliding across the tank at less than half the wave speed. Wavefronts bunch up ahead of it and stretch out behind, so an observer in front hears a higher pitch.',
+    apply(field, { frequency }) {
+      field.addSource(px(field, 0.2), py(field, 0.5), { frequency, vx: 0.3 });
+    },
+  },
+  {
+    id: 'mach',
+    name: 'Mach cone',
+    description: 'A source outrunning its own waves. No wavefront can get ahead of it, and the crests it leaves behind pile up along a V-shaped shock front.',
+    apply(field, { frequency }) {
+      field.addSource(px(field, 0.1), py(field, 0.5), { frequency, amplitude: 1.5, vx: 0.95 });
+    },
+  },
+  {
     id: 'empty',
     name: 'Empty tank',
     description: 'Nothing but water. Click to drop sources, drag to draw walls.',

@@ -96,6 +96,11 @@ test('paintField writes opaque pixels, marks walls and sources, and honours the 
   const px = (x, y) => Array.from(rgba.subarray(f.index(x, y) * 4, f.index(x, y) * 4 + 3));
   assert.deepEqual(px(1, 1), WALL_COLOR);
   assert.deepEqual(px(6, 4), SOURCE_COLOR);
+  // A drifting source between cells is marked on the nearest one.
+  f.sources[0].x = 5.4;
+  paintField(f, rgba, { scale: 0.5 });
+  assert.deepEqual(px(5, 4), SOURCE_COLOR);
+  assert.notDeepEqual(px(6, 4), SOURCE_COLOR);
   assert.deepEqual(px(3, 3), displacementColor(1), 'scale 0.5 maps u=0.5 to full colour');
   assert.deepEqual(px(0, 0), displacementColor(0));
   f.cur[f.index(3, 3)] = -0.3;
