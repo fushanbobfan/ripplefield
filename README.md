@@ -32,7 +32,7 @@ static server works too.
 
 | Control | Effect |
 | --- | --- |
-| Scene | Load one of ten built-in set-ups (see below) |
+| Scene | Load one of twelve built-in set-ups (see below) |
 | Frequency | Oscillation rate of every source, in thousandths of a cycle per step |
 | Damping | Uniform energy loss; useful to settle a busy tank |
 | Speed | Simulation steps per animation frame |
@@ -65,6 +65,10 @@ pick a tool.
 - **Shallow-water lens** – a round patch of slow water focuses plane waves.
 - **Refraction at a boundary** – waves slow down and shorten as they cross
   into shallower water.
+- **Doppler shift** – a source gliding at less than half the wave speed;
+  wavefronts bunch up ahead of it and stretch out behind.
+- **Mach cone** – a source outrunning its own waves, leaving a V-shaped shock
+  front behind it.
 - **Empty tank** – start from nothing.
 
 ## How it works
@@ -88,7 +92,10 @@ u_next = (2u − (1 − σ) u_prev + (c·Δt/Δx)² ∇²u) / (1 + σ)
 - Walls pin the displacement to zero, which reflects waves with a phase
   inversion.
 - Sources add `A·sin(2πft + φ)` to their cell every step (a "soft" source), so
-  waves pass through them instead of scattering off a clamped cell.
+  waves pass through them instead of scattering off a clamped cell. A source
+  can also drift with a velocity in cells per step; it is then injected into
+  the four surrounding cells with bilinear weights so it glides smoothly, and
+  it bounces off the tank border and any wall it meets.
 
 Colours: amber for crests, blue for troughs, dark slate for still water. The
 intensity view keeps an exponential running average of `u²`, normalises it by
