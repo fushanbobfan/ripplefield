@@ -118,13 +118,67 @@ export class WaveField {
 
   /**
    * Add a continuously oscillating point source.
-   * frequency is in cycles per step, phase in radians. Returns the source.
+   * frequency is in cycles per step, phase in radians. vx/vy give a drift in
+   * cells per step; a moving source bounces off the tank's inner border and
+   * off walls. Returns the source.
    */
-  addSource(x, y, { frequency = 0.02, amplitude = 1, phase = 0 } = {}) {
+  addSource(x, y, { frequency = 0.02, amplitude = 1, phase = 0, vx = 0, vy = 0 } = {}) {
     if (!this.inBounds(x, y)) throw new RangeError('source outside the grid');
-    const source = { x, y, frequency, amplitude, phase, enabled: true };
+    const source = { x, y, frequency, amplitude, phase, vx, vy, enabled: true };
     this.sources.push(source);
     return source;
+  }
+
+  /** Move a drifting source one step, reflecting off the border and walls. */
+  _moveSource(src) {
+    if (!src.vx && !src.vy) return;
+    const minX = 1;
+    const minY = 1;
+    const maxX = this.width - 2;
+    const maxY = this.height - 2;
+    let nx = src.x + src.vx;
+    let ny = src.y + src.vy;
+    if (nx < minX || nx > maxX) {
+      src.vx = -src.vx;
+      nx = Math.min(maxX, Math.max(minX, nx));
+    }
+    if (ny < minY || ny > maxY) {
+      src.vy = -src.vy;
+      ny = Math.min(maxY, Math.max(minY, ny));
+    }
+    // Reflect off walls along each axis independently so a source sliding
+    // past a barrier keeps its tangential motion.
+    if (this.wall[this.index(Math.round(nx), Math.round(src.y))]) {
+      src.vx = -src.vx;
+      nx = src.x;
+    }
+    if (this.wall[this.index(Math.round(src.x), Math.round(ny))]) {
+      src.vy = -src.vy;
+      ny = src.y;
+    }
+    src.x = nx;
+    src.y = ny;
+  }
+
+  /**
+   * Add value into the four cells around a fractional position with bilinear
+   * weights, so a moving source glides instead of hopping cell to cell.
+   */
+  _inject(buffer, x, y, value) {
+    const x0 = Math.floor(x);
+    const y0 = Math.floor(y);
+    const fx = x - x0;
+    const fy = y - y0;
+    const { width, wall } = this;
+    const put = (cx, cy, w) => {
+      if (w <= 0 || !this.inBounds(cx, cy)) return;
+      const i = cy * width + cx;
+      if (!wall[i]) buffer[i] += value * w;
+    };
+    put(x0, y0, (1 - fx) * (1 - fy));
+    put(x0 + 1, y0, fx * (1 - fy));
+    put(x0, y0 + 1, (1 - fx) * fy);
+    put(x0 + 1, y0 + 1, fx * fy);
   }
 
   removeSource(source) {
@@ -197,9 +251,14 @@ export class WaveField {
     this.time += 1;
     for (const src of this.sources) {
       if (!src.enabled) continue;
-      const i = this.index(src.x, src.y);
-      if (wall[i]) continue;
-      next[i] += src.amplitude * Math.sin(2 * Math.PI * src.frequency * this.time + src.phase);
+      this._moveSource(src);
+      const value = src.amplitude * Math.sin(2 * Math.PI * src.frequency * this.time + src.phase);
+      if (Number.isInteger(src.x) && Number.isInteger(src.y)) {
+        const i = this.index(src.x, src.y);
+        if (!wall[i]) next[i] += value;
+      } else {
+        this._inject(next, src.x, src.y, value);
+      }
     }
 
     this.prev = cur;

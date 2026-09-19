@@ -125,6 +125,72 @@ test('an oscillating source keeps injecting energy', () => {
   assert.throws(() => f.addSource(100, 100), RangeError);
 });
 
+test('a source at a fractional position is split between neighbouring cells', () => {
+  const f = new WaveField(21, 21);
+  f.addSource(10.5, 10, { frequency: 0.25, amplitude: 1 }); // sin(pi/2) = 1 on step 1
+  f.step();
+  const a = f.cur[f.index(10, 10)];
+  const b = f.cur[f.index(11, 10)];
+  assert.ok(Math.abs(a - 0.5) < 1e-6 && Math.abs(b - 0.5) < 1e-6, `${a} ${b}`);
+  assert.equal(f.cur[f.index(10, 11)], 0);
+});
+
+test('a drifting source moves each step and bounces off the border', () => {
+  const f = new WaveField(41, 21);
+  const s = f.addSource(35, 10, { vx: 1, vy: 0 });
+  f.step();
+  assert.equal(s.x, 36);
+  for (let i = 0; i < 100; i++) {
+    f.step();
+    assert.ok(s.x >= 1 && s.x <= 39, `source left the tank at x=${s.x}`);
+    assert.equal(s.y, 10);
+  }
+  assert.ok(s.vx < 0 || s.x < 35, 'the source turned around');
+  const t = f.addSource(20, 2, { vx: 0, vy: -0.5 });
+  for (let i = 0; i < 10; i++) f.step();
+  assert.ok(t.y >= 1);
+  assert.ok(t.vy > 0);
+});
+
+test('a drifting source reflects off walls', () => {
+  const f = new WaveField(41, 21);
+  f.fillWall(30, 0, 31, 20);
+  const s = f.addSource(20, 10, { vx: 1 });
+  for (let i = 0; i < 15; i++) {
+    f.step();
+    assert.ok(s.x < 30, `source entered the wall at x=${s.x}`);
+  }
+  assert.ok(s.vx < 0 && s.x < 29, `source did not turn back: x=${s.x} vx=${s.vx}`);
+  // A still source is left alone.
+  const r = f.addSource(5, 5);
+  f.step();
+  assert.equal(r.x, 5);
+  assert.equal(r.y, 5);
+});
+
+// Count sign changes of the displacement along a row segment.
+function zeroCrossings(field, y, x0, x1) {
+  let n = 0;
+  let last = 0;
+  for (let x = x0; x <= x1; x++) {
+    const v = field.cur[field.index(x, y)];
+    if (v !== 0 && last !== 0 && Math.sign(v) !== Math.sign(last)) n++;
+    if (v !== 0) last = v;
+  }
+  return n;
+}
+
+test('a moving source shows a Doppler shift: shorter waves ahead, longer behind', () => {
+  const f = new WaveField(321, 61, { spongeWidth: 16 });
+  const s = f.addSource(60, 30, { frequency: 0.05, vx: 0.3 });
+  for (let t = 0; t < 200; t++) f.step();
+  const x = Math.round(s.x);
+  assert.ok(Math.abs(x - 120) <= 1);
+  const ahead = zeroCrossings(f, 30, x + 10, x + 70);
+  const behind = zeroCrossings(f, 30, x - 70, x - 10);
+  assert.ok(ahead > behind * 1.8, `ahead ${ahead} vs behind ${behind}`);
+});
+
 test('sources can be removed and cleared', () => {
   const f = new WaveField(11, 11);
   const a = f.addSource(3, 3);
