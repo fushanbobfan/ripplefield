@@ -1,6 +1,7 @@
 import { WaveField } from './wave.js';
 import { SCENES, loadScene } from './scenes.js';
 import { IntensityAccumulator, paintField } from './render.js';
+import { encodeState, decodeState, encodeMedium, applyMedium, decodeSources } from './share.js';
 
 const GRID_W = 240;
 const GRID_H = 160;
@@ -40,6 +41,8 @@ const ui = {
   clearWaves: $('clear-waves'),
   clearSources: $('clear-sources'),
   reset: $('reset'),
+  share: $('share'),
+  shareStatus: $('share-status'),
   status: $('status'),
   tools: Array.from(document.querySelectorAll('input[name="tool"]')),
 };
@@ -52,6 +55,8 @@ const state = {
   brush: Number(ui.brush.value),
   tool: 'source',
   sceneId: DEFAULT_SCENE,
+  // Medium as laid down by the current scene, so links only carry edits.
+  baseMedium: '',
   frames: 0,
   fps: 0,
   lastFpsTime: performance.now(),
@@ -77,11 +82,86 @@ for (const scene of SCENES) {
 
 function applyScene(id) {
   const scene = loadScene(field, id, { frequency: sliderFrequency() });
-  if (!scene) return;
+  if (!scene) return false;
   state.sceneId = id;
   ui.scene.value = id;
   ui.sceneDescription.textContent = scene.description;
+  state.baseMedium = encodeMedium(field);
   intensity.reset();
+  return true;
+}
+
+// ---- share links ----------------------------------------------------------
+
+function currentSettings() {
+  return {
+    scene: state.sceneId,
+    frequency: Number(ui.frequency.value),
+    damping: field.damping,
+    brightness: state.brightness,
+    view: state.view,
+  };
+}
+
+function shareUrl() {
+  const url = new URL(window.location.href);
+  url.hash = encodeState(currentSettings(), field, state.baseMedium);
+  return url.toString();
+}
+
+let shareStatusTimer = 0;
+function showShareStatus(text) {
+  ui.shareStatus.textContent = text;
+  clearTimeout(shareStatusTimer);
+  shareStatusTimer = setTimeout(() => {
+    ui.shareStatus.textContent = '';
+  }, 4000);
+}
+
+async function copyShareLink() {
+  const url = shareUrl();
+  history.replaceState(null, '', url);
+  try {
+    await navigator.clipboard.writeText(url);
+    showShareStatus('Link copied. It restores the scene, settings, sources and any walls or shallows you drew.');
+  } catch {
+    showShareStatus('Link is in the address bar; copy it from there.');
+  }
+}
+
+/** Rebuild the tank from a hash fragment. Returns false if there was nothing usable. */
+function restoreFromHash(hash) {
+  const saved = decodeState(hash);
+  if (!saved) return false;
+  if (saved.frequency !== undefined) {
+    ui.frequency.value = String(Math.round(saved.frequency));
+    ui.frequencyValue.textContent = ui.frequency.value;
+  }
+  if (!applyScene(saved.scene)) applyScene(DEFAULT_SCENE);
+  if (saved.damping !== undefined) {
+    field.damping = saved.damping;
+    ui.damping.value = String(saved.damping);
+    ui.dampingValue.textContent = saved.damping.toFixed(4);
+  }
+  if (saved.brightness !== undefined) {
+    state.brightness = saved.brightness;
+    ui.brightness.value = String(saved.brightness);
+    ui.brightnessValue.textContent = saved.brightness.toFixed(1);
+  }
+  if (saved.view !== undefined) {
+    state.view = saved.view;
+    ui.view.value = saved.view;
+  }
+  if (saved.sources !== undefined) {
+    field.clearSources();
+    const f = sliderFrequency();
+    for (const s of decodeSources(saved.sources, GRID_W, GRID_H)) {
+      field.addSource(s.x, s.y, { frequency: f, amplitude: s.amplitude, phase: s.phase, vx: s.vx, vy: s.vy });
+    }
+  }
+  if (saved.medium !== undefined) applyMedium(field, saved.medium);
+  intensity.reset();
+  return true;
 }
 
 // ---- controls -----------------------------------------------------------
@@ -145,6 +225,7 @@ ui.clearSources.addEventListener('click', () => {
   intensity.reset();
 });
 ui.reset.addEventListener('click', () => applyScene(state.sceneId));
+ui.share.addEventListener('click', copyShareLink);
 
 for (const radio of ui.tools) {
   radio.addEventListener('change', () => {
@@ -176,6 +257,8 @@ document.addEventListener('keydown', (e) => {
     applyScene(state.sceneId);
   } else if (key === 'v') {
     switchView();
+  } else if (key === 'l') {
+    copyShareLink();
   } else if (/^[1-5]$/.test(e.key)) {
     const radio = ui.tools[Number(e.key) - 1];
     if (radio) {
@@ -335,7 +418,12 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-applyScene(DEFAULT_SCENE);
 ui.frequencyValue.textContent = ui.frequency.value;
 ui.dampingValue.textContent = Number(ui.damping.value).toFixed(4);
+if (!restoreFromHash(window.location.hash)) applyScene(DEFAULT_SCENE);
+window.addEventListener('hashchange', () => {
+  if (window.location.hash !== '#' + encodeState(currentSettings(), field, state.baseMedium)) {
+    restoreFromHash(window.location.hash);
+  }
+});
 requestAnimationFrame(frame);
