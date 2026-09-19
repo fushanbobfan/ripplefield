@@ -61,6 +61,20 @@ export class IntensityAccumulator {
     this.peak = 0;
   }
 
+  /**
+   * A robust brightness reference: the given percentile of the accumulated
+   * intensity, estimated from a strided sample so it is cheap enough to call
+   * every frame. The single brightest cell (usually a source) would otherwise
+   * dominate the normalisation and leave the rest of the tank black.
+   */
+  reference(percentile = 0.98, stride = 7) {
+    const sample = [];
+    for (let i = 0; i < this.values.length; i += stride) sample.push(this.values[i]);
+    sample.sort((a, b) => a - b);
+    const k = Math.min(sample.length - 1, Math.floor(percentile * sample.length));
+    return sample[k] ?? 0;
+  }
+
   /** Fold one displacement snapshot in and return the running peak intensity. */
   update(u) {
     const { values, rate } = this;
@@ -73,6 +87,24 @@ export class IntensityAccumulator {
     this.peak = peak;
     return peak;
   }
+}
+
+// Colour lookup tables so the per-pixel loop does no float maths on colours.
+// Displacement is quantised to 511 levels over [-1, 1], intensity to 256.
+const LUT_HALF = 255;
+const displacementLut = new Uint8ClampedArray((2 * LUT_HALF + 1) * 3);
+const intensityLut = new Uint8ClampedArray(256 * 3);
+for (let i = 0; i <= 2 * LUT_HALF; i++) {
+  const [r, g, b] = displacementColor((i - LUT_HALF) / LUT_HALF);
+  displacementLut[i * 3] = r;
+  displacementLut[i * 3 + 1] = g;
+  displacementLut[i * 3 + 2] = b;
+}
+for (let i = 0; i < 256; i++) {
+  const [r, g, b] = intensityColor(i / 255);
+  intensityLut[i * 3] = r;
+  intensityLut[i * 3 + 1] = g;
+  intensityLut[i * 3 + 2] = b;
 }
 
 /**
@@ -88,27 +120,44 @@ function mediumTint(speed) {
  * Write the field into an RGBA buffer (Uint8ClampedArray, width*height*4).
  * mode is 'displacement' or 'intensity'; scale normalises the values so that
  * |u| = scale maps to full colour (displacement) or intensity = scale maps to
- * full brightness.
+ * full brightness. Intensity is shown on a square-root scale, i.e. as an
+ * amplitude, which keeps faint fringes visible next to bright ones.
  */
 export function paintField(field, rgba, { mode = 'displacement', scale = 1, intensity = null } = {}) {
   const { width, height, cur, wall, speed } = field;
   const inv = scale > 0 ? 1 / scale : 1;
   const useIntensity = mode === 'intensity' && intensity;
+  const [wr, wg, wb] = WALL_COLOR;
   let p = 0;
   for (let i = 0; i < width * height; i++) {
     let r;
     let g;
     let b;
     if (wall[i]) {
-      [r, g, b] = WALL_COLOR;
+      r = wr;
+      g = wg;
+      b = wb;
     } else {
+      let k;
+      let lut;
       if (useIntensity) {
-        [r, g, b] = intensityColor(intensity[i] * inv);
+        let v = Math.sqrt(intensity[i] * inv);
+        if (v > 1) v = 1;
+        k = Math.round(v * 255) * 3;
+        lut = intensityLut;
       } else {
-        [r, g, b] = displacementColor(cur[i] * inv);
+        let v = cur[i] * inv;
+        if (v > 1) v = 1;
+        else if (v < -1) v = -1;
+        k = (Math.round(v * LUT_HALF) + LUT_HALF) * 3;
+        lut = displacementLut;
       }
-      const tint = mediumTint(speed[i]);
-      if (tint > 0) {
+      r = lut[k];
+      g = lut[k + 1];
+      b = lut[k + 2];
+      const sp = speed[i];
+      if (sp < 1) {
+        const tint = mediumTint(sp);
         r = Math.round(r * (1 - 0.35 * tint));
         g = Math.round(g * (1 - 0.05 * tint) + 30 * tint);
         b = Math.round(b * (1 - 0.1 * tint) + 20 * tint);

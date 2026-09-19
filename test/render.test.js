@@ -10,6 +10,14 @@ import {
   SOURCE_COLOR,
 } from '../src/render.js';
 
+// Painted pixels come from a quantised lookup table, so compare loosely.
+function close(actual, expected, tolerance = 2) {
+  assert.equal(actual.length, expected.length);
+  for (let i = 0; i < actual.length; i++) {
+    assert.ok(Math.abs(actual[i] - expected[i]) <= tolerance, `channel ${i}: ${actual} vs ${expected}`);
+  }
+}
+
 function isRgb(c) {
   return c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= 255);
 }
@@ -64,6 +72,19 @@ test('the intensity accumulator tracks a running mean of squared displacement', 
   assert.equal(acc.peak, 0);
 });
 
+test('the reference level is a high percentile rather than the peak', () => {
+  const acc = new IntensityAccumulator(1000, { rate: 1 });
+  const u = new Float32Array(1000).fill(1);
+  u[0] = 100; // one very bright cell, e.g. a source
+  acc.update(u);
+  assert.equal(acc.peak, 10000);
+  const ref = acc.reference(0.98, 1);
+  assert.equal(ref, 1);
+  // With everything zero the reference is zero, not NaN.
+  acc.reset();
+  assert.equal(acc.reference(), 0);
+});
+
 test('paintField writes opaque pixels, marks walls and sources, and honours the scale', () => {
   const f = new WaveField(8, 6);
   f.setWall(1, 1);
@@ -77,6 +98,11 @@ test('paintField writes opaque pixels, marks walls and sources, and honours the 
   assert.deepEqual(px(6, 4), SOURCE_COLOR);
   assert.deepEqual(px(3, 3), displacementColor(1), 'scale 0.5 maps u=0.5 to full colour');
   assert.deepEqual(px(0, 0), displacementColor(0));
+  f.cur[f.index(3, 3)] = -0.3;
+  f.cur[f.index(4, 4)] = -9;
+  paintField(f, rgba, { scale: 1 });
+  close(px(3, 3), displacementColor(-0.3));
+  assert.deepEqual(px(4, 4), displacementColor(-1), 'over-range troughs clamp');
 });
 
 test('intensity mode paints from the accumulator and shallow water is tinted', () => {
@@ -89,6 +115,12 @@ test('intensity mode paints from the accumulator and shallow water is tinted', (
   const px = (x, y) => Array.from(rgba.subarray(f.index(x, y) * 4, f.index(x, y) * 4 + 3));
   assert.deepEqual(px(1, 1), intensityColor(1));
   assert.deepEqual(px(0, 0), intensityColor(0));
+  intensity[f.index(1, 1)] = 0.5;
+  paintField(f, rgba, { mode: 'intensity', scale: 2, intensity });
+  close(px(1, 1), intensityColor(0.5)); // shown on a square-root scale
+  intensity[f.index(1, 1)] = 50;
+  paintField(f, rgba, { mode: 'intensity', scale: 2, intensity });
+  assert.deepEqual(px(1, 1), intensityColor(1), 'over-range intensity clamps');
   assert.notDeepEqual(px(2, 2), px(0, 0), 'slow cell is tinted differently from deep water');
   // Without an accumulator, intensity mode falls back to displacement.
   paintField(f, rgba, { mode: 'intensity', scale: 1 });
