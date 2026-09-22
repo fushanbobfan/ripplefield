@@ -4,6 +4,8 @@ An interactive ripple tank in the browser. Drop oscillating sources, draw
 walls and slits, paint patches of shallow water, and watch interference,
 diffraction, reflection and refraction unfold in real time.
 
+**Live demo:** https://fushanbobfan.github.io/ripplefield/
+
 Runs with no build step and no dependencies. The wave solver, scene
 definitions and colour mapping are plain ES modules covered by a Node test
 suite; only the page glue touches the DOM.
